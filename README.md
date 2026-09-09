@@ -7,7 +7,7 @@ contact belongs to exactly one account, and that ownership is enforced by
 Postgres Row Level Security rather than by application code, so it holds even
 if someone bypasses the app and calls the public data endpoint directly.
 
-**Live app:** _<!-- LIVE_URL -->_
+**Live app:** <https://networking-tracker-carlos-mena.vercel.app>
 
 ---
 
@@ -30,7 +30,25 @@ if someone bypasses the app and calls the public data endpoint directly.
 
 ## Screenshots
 
-_<!-- SCREENSHOTS -->_
+Every image below is produced by `npm run screenshots`, which drives a real
+Chrome through the running app (`scripts/capture-screenshots.mts`). They are
+regenerated rather than hand-taken, so they cannot drift from the code.
+
+| Sign in | Contact list |
+|---|---|
+| ![Sign in](docs/screenshots/01-sign-in.png) | ![Contact list](docs/screenshots/06-list-after-refresh.png) |
+
+| Add contact | Empty state |
+|---|---|
+| ![Add contact](docs/screenshots/05-contact-created.png) | ![Empty state](docs/screenshots/03-empty-state.png) |
+
+| Edit | Delete confirmation |
+|---|---|
+| ![Edit](docs/screenshots/08-edit-dialog.png) | ![Delete](docs/screenshots/09-delete-confirm.png) |
+
+| Search and filter | Mobile |
+|---|---|
+| ![Search](docs/screenshots/07-search-filter.png) | <img src="docs/screenshots/10-mobile-list.png" width="260" alt="Mobile layout"> |
 
 ## Features
 
@@ -202,6 +220,7 @@ fails the build rather than leaking at runtime.
 ```bash
 npm test          # validation + route handler tests (no database needed)
 npm run test:rls  # two-account privacy proof against the real database
+npm run screenshots  # regenerate the README screenshots from the running app
 ```
 
 `npm test` covers two things:
@@ -221,7 +240,198 @@ npm run test:rls  # two-account privacy proof against the real database
 
 ## Grading evidence
 
-_<!-- EVIDENCE -->_
+Everything here is reproducible from a clone of this repository.
+
+### 1. Automated tests pass
+
+```
+$ npm test
+
+ ✓ tests/sort.test.ts (5 tests)
+ ✓ tests/validation.test.ts (20 tests)
+ ✓ tests/api-contacts.test.ts (16 tests)
+
+ Test Files  3 passed (3)
+      Tests  41 passed (41)
+```
+
+The validation tests that matter most for this rubric:
+
+```
+✓ rejects an empty name with a clear message
+✓ rejects a whitespace-only name
+✓ rejects a priority outside high/medium/low
+✓ strips user_id so a caller cannot choose a row owner
+✓ strips id so a caller cannot choose a primary key
+✓ POST returns 401 when signed out and never touches the database
+✓ rejects an empty name with 400 and a field error
+✓ never forwards a caller-supplied user_id to the database
+✓ surfaces the repository's 404 when RLS hides another user's row
+✓ puts the most important first when descending
+```
+
+### 2. Sign in and sign out
+
+![Sign in](docs/screenshots/01-sign-in.png)
+
+Creating an account, then signing out and landing back on the sign-in screen:
+
+| Sign up | After signing out |
+|---|---|
+| ![Sign up](docs/screenshots/02-sign-up-filled.png) | ![Signed out](docs/screenshots/11-signed-out.png) |
+
+Signing out is enforced on the server, not just in the UI:
+
+```
+GET /api/contacts   → 401 {"error":"You must be signed in to do that."}
+GET /contacts       → redirects to /sign-in
+```
+
+### 3. Create, edit, delete, and survive a refresh
+
+| Created | Edit | Delete |
+|---|---|---|
+| ![Created](docs/screenshots/05-contact-created.png) | ![Edit](docs/screenshots/08-edit-dialog.png) | ![Delete](docs/screenshots/09-delete-confirm.png) |
+
+This screenshot is taken **after a full page reload**, so the rows are coming
+back from Neon Postgres rather than from client state:
+
+![After refresh](docs/screenshots/06-list-after-refresh.png)
+
+Sorting and filtering, verified against the live API:
+
+```
+sort=priority&direction=desc  → Priya [high], Marcus [high], Dana [medium], Tom [low]
+sort=priority&direction=asc   → Tom [low], Dana [medium], Priya [high], Marcus [high]
+sort=name&direction=asc       → Dana, Marcus, Priya, Tom
+sort=company&direction=asc    → Anthropic, McKinsey, Sequoia Capital, Stripe
+priority=high                 → Priya, Marcus
+search=haas                   → Dana Ruiz
+search=zzz                    → (empty)
+```
+
+### 4. User A cannot access User B's contacts
+
+`npm run test:rls` signs in as two separate accounts and attacks the **public
+Data API directly**, bypassing the Next.js app completely. This is the point:
+if the route handlers were deleted, these checks would still pass, because the
+protection lives in the database.
+
+```
+$ npm run test:rls
+
+Two-account RLS check
+Talking straight to the public Data API, bypassing the app entirely.
+  Data API: https://ep-calm-tooth-aeraztk0.apirest.c-2.us-east-2.aws.neon.tech/neondb/rest/v1
+
+Setup
+  PASS  The two accounts resolve to different user_id values
+  PASS  user_id was populated automatically by default auth.user_id()
+
+1. Reading another user's data
+  PASS  User B's full contact list does not include User A's contact
+  PASS  Every row User B can read belongs to User B
+  PASS  Asking for User A's contact by its exact id returns nothing
+
+2. Modifying another user's data
+  PASS  User B cannot edit User A's contact
+  PASS  User B cannot delete User A's contact
+
+3. Giving a row away (the UPDATE ... WITH CHECK rule)
+  PASS  User B cannot reassign their own row to User A
+  PASS  User B's row still belongs to User B afterwards
+
+4. Planting a row on another user
+  PASS  User B cannot create a contact owned by User A
+
+5. User A is untouched
+  PASS  User A's contact survived every attempt with its name intact
+
+6. Anonymous access
+  PASS  A request with no JWT returns no rows
+
+7. Field validation is enforced by the database, not just the app
+  PASS  The database rejects priority="urgent" even when the app is bypassed
+  PASS  The database rejects a blank name even when the app is bypassed
+
+14/14 checks passed.
+RLS CHECK PASSED - User A and User B cannot reach each other's contacts.
+```
+
+### 5. Invalid input fails safely
+
+Submitting an empty name. The field is marked, the message names the problem,
+and no row is written:
+
+![Validation error](docs/screenshots/04-validation-empty-name.png)
+
+The same rule holds one layer down. Bypassing the UI and posting straight to
+the API:
+
+```
+POST /api/contacts  {"name":"","priority":"high"}
+→ 400 {"error":"Name is required.","fieldErrors":{"name":"Name is required."}}
+
+POST /api/contacts  {"name":"Dana","priority":"urgent"}
+→ 400 {"fieldErrors":{"priority":"Priority must be one of: high, medium, low."}}
+```
+
+And one layer below that, bypassing the app entirely (checks 7 above): the
+Postgres `CHECK` constraints reject both writes even when the request goes
+straight to the Data API.
+
+### 6. Schema and RLS ownership rule
+
+See [Database schema](#database-schema) and
+[Authentication and RLS ownership](#authentication-and-rls-ownership). In one
+sentence: every contact carries a `user_id` that defaults to `auth.user_id()`,
+and four RLS policies restrict select, insert, update and delete to rows where
+`auth.user_id() = user_id`, with the update policy's `WITH CHECK` preventing a
+row from being handed to another user.
+
+Verified in the database itself:
+
+```sql
+select
+  (select count(*) from pg_policies where tablename = 'contacts')          as policies,
+  (select relrowsecurity from pg_class where relname = 'contacts')         as rls_on,
+  (select relforcerowsecurity from pg_class where relname = 'contacts')    as rls_forced,
+  (select count(*) from information_schema.column_privileges
+     where table_name = 'contacts' and grantee = 'authenticated'
+       and privilege_type in ('INSERT','UPDATE')
+       and column_name = 'user_id')                                        as user_id_writable;
+
+ policies | rls_on | rls_forced | user_id_writable
+----------+--------+------------+------------------
+        4 | t      | t          |                0
+```
+
+`user_id_writable = 0` is the one worth pausing on: the `authenticated` role
+has no INSERT or UPDATE privilege on the ownership column at all, so a caller
+cannot set it even before RLS is consulted.
+
+### 7. No secrets in the repository
+
+```
+$ git log -p --all | grep -iE "postgresql://[^ ]*:[^ ]*@|NEON_AUTH_COOKIE_SECRET=..."
+(no matches)
+```
+
+`.env.local` is git-ignored; only `.env.example`, which contains placeholders,
+is committed. The split is also visible in Vercel, where the public URLs are
+readable and the secrets are not:
+
+```
+name                            value                 type
+NEXT_PUBLIC_NEON_DATA_API_URL   eyJ2IjoidjIi…         Non-sensitive
+NEXT_PUBLIC_NEON_AUTH_URL       eyJ2IjoidjIi…         Non-sensitive
+NEON_AUTH_COOKIE_SECRET         Hidden                Sensitive
+NEON_AUTH_BASE_URL              Hidden                Sensitive
+```
+
+Vercel actively refuses to store a `NEXT_PUBLIC_`-prefixed variable as a
+secret, which is the same distinction this project relies on: those two URLs
+are addresses, and RLS is what protects the data behind them.
 
 ## Deployment
 
