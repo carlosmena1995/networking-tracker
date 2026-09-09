@@ -49,6 +49,15 @@ function trimSlash(url: string) {
   return url.replace(/\/+$/, '');
 }
 
+/**
+ * Managed Better Auth rejects requests with no Origin header
+ * (MISSING_OR_NULL_ORIGIN). A browser sets it automatically; Node does not, so
+ * we send one explicitly. Neon allows any localhost origin in development, and
+ * RLS_TEST_ORIGIN can point this at the deployed domain to run the same checks
+ * against production.
+ */
+const ORIGIN = trimSlash(process.env.RLS_TEST_ORIGIN ?? 'http://localhost:3000');
+
 // --------------------------------------------------------------------------
 // Auth: sign in over HTTP and exchange the session cookie for a JWT
 // --------------------------------------------------------------------------
@@ -69,7 +78,7 @@ async function getJwt(account: { label: string; email: string; password: string 
     password: account.password,
     name: account.label,
   });
-  const headers = { 'Content-Type': 'application/json' };
+  const headers = { 'Content-Type': 'application/json', Origin: ORIGIN };
 
   // Create the account on first run. An existing account is not an error -
   // we just fall through to sign-in.
@@ -91,7 +100,9 @@ async function getJwt(account: { label: string; email: string; password: string 
   if (!cookie) throw new Error(`${account.label} signed in but no session cookie was returned.`);
 
   // The Data API wants a JWT, not a cookie.
-  const tokenResponse = await fetch(`${AUTH_URL}/token`, { headers: { Cookie: cookie } });
+  const tokenResponse = await fetch(`${AUTH_URL}/token`, {
+    headers: { Cookie: cookie, Origin: ORIGIN },
+  });
   if (!tokenResponse.ok) {
     throw new Error(
       `Could not mint a JWT for ${account.label} (HTTP ${tokenResponse.status}): ${(await tokenResponse.text()).slice(0, 200)}`,
@@ -180,6 +191,7 @@ async function main() {
   console.log('Two-account RLS check');
   console.log('Talking straight to the public Data API, bypassing the app entirely.');
   console.log(`  Data API: ${DATA_API_URL}`);
+  console.log(`  Origin:   ${ORIGIN}`);
 
   const tokenA = await getJwt(ACCOUNTS.a);
   const tokenB = await getJwt(ACCOUNTS.b);

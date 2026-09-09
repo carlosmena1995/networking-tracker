@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth/server';
 import { publicEnv } from '@/lib/env';
 import type { CreateContactInput, UpdateContactInput, Priority } from '@/lib/validation';
 import type { Contact } from '@/lib/types';
+import { sortByPriority } from '@/lib/sort';
 
 // The row shape lives in lib/types.ts so client components can import it
 // without pulling in this server-only module.
@@ -106,11 +107,7 @@ export async function listContacts(options: ListOptions = {}): Promise<Contact[]
   if (sort === 'priority') {
     const { data, error } = await query.order('created_at', { ascending: false });
     if (error) throw toContactsError(error);
-    const rank: Record<Priority, number> = { high: 0, medium: 1, low: 2 };
-    const rows = (data ?? []) as Contact[];
-    return [...rows].sort((a, b) =>
-      direction === 'asc' ? rank[a.priority] - rank[b.priority] : rank[b.priority] - rank[a.priority],
-    );
+    return sortByPriority((data ?? []) as Contact[], direction);
   }
 
   const { data, error } = await query.order(sort, {

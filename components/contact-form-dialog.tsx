@@ -163,7 +163,9 @@ function ContactForm({
           <Field id="priority" label="Priority" error={fieldErrors.priority} required>
             <Select value={values.priority} onValueChange={(v) => set('priority', v as Priority)}>
               <SelectTrigger id="priority" className="w-full" aria-invalid={Boolean(fieldErrors.priority)}>
-                <SelectValue placeholder="Select a priority" />
+                <SelectValue placeholder="Select a priority" className="capitalize">
+                  {values.priority}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {PRIORITIES.map((p) => (

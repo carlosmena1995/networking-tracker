@@ -30,6 +30,13 @@ const SORT_LABELS: Record<SortField, string> = {
   priority: 'Priority',
 };
 
+const PRIORITY_FILTER_LABELS: Record<PriorityFilter, string> = {
+  all: 'All',
+  high: 'High',
+  medium: 'Medium',
+  low: 'Low',
+};
+
 const PRIORITY_STYLES: Record<Priority, string> = {
   high: 'border-transparent bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-200',
   medium: 'border-transparent bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200',
@@ -173,13 +180,16 @@ export function ContactsView() {
             <Label htmlFor="priority-filter">Priority</Label>
             <Select value={priority} onValueChange={(v) => setPriority(v as PriorityFilter)}>
               <SelectTrigger id="priority-filter" className="w-full lg:w-36">
-                <SelectValue />
+                {/* Passing children overrides Radix's auto-detected text, which
+                    is empty until SelectContent has been opened once. */}
+                <SelectValue>{PRIORITY_FILTER_LABELS[priority]}</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
+                {(Object.keys(PRIORITY_FILTER_LABELS) as PriorityFilter[]).map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {PRIORITY_FILTER_LABELS[value]}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -188,7 +198,7 @@ export function ContactsView() {
             <Label htmlFor="sort">Sort by</Label>
             <Select value={sort} onValueChange={(v) => setSort(v as SortField)}>
               <SelectTrigger id="sort" className="w-full lg:w-40">
-                <SelectValue />
+                <SelectValue>{SORT_LABELS[sort]}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {(Object.keys(SORT_LABELS) as SortField[]).map((field) => (
