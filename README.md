@@ -32,7 +32,8 @@ if someone bypasses the app and calls the public data endpoint directly.
 
 Every image below is produced by `npm run screenshots`, which drives a real
 Chrome through the running app (`scripts/capture-screenshots.mts`). They are
-regenerated rather than hand-taken, so they cannot drift from the code.
+regenerated rather than hand-taken, so they cannot drift from the code. **These
+were captured against the live Vercel deployment**, not localhost.
 
 | Sign in | Contact list |
 |---|---|
@@ -220,8 +221,15 @@ fails the build rather than leaking at runtime.
 ```bash
 npm test          # validation + route handler tests (no database needed)
 npm run test:rls  # two-account privacy proof against the real database
+npm run test:privacy # two-account check through the app's own API
 npm run screenshots  # regenerate the README screenshots from the running app
 ```
+
+`test:rls` and `test:privacy` are deliberately different. `test:rls` bypasses
+the application to prove the database is the real boundary; `test:privacy` goes
+through the deployed route handlers to prove the app returns 404 rather than
+somebody else's data. Both accept `BASE_URL` / `RLS_TEST_ORIGIN` so they can be
+pointed at production.
 
 `npm test` covers two things:
 
@@ -358,6 +366,33 @@ Setup
 RLS CHECK PASSED - User A and User B cannot reach each other's contacts.
 ```
 
+The same two-account test, this time **through the deployed application's own
+API** rather than around it:
+
+```
+$ BASE_URL=https://networking-tracker-carlos-mena.vercel.app npm run test:privacy
+
+Two-account privacy check, through the deployed app API
+  https://networking-tracker-carlos-mena.vercel.app
+
+User A created contact a57d02e1-8ef1-4b10-b5b0-9ef8413cde96
+
+  PASS  User B's list does not contain User A's contact
+  PASS  User B editing User A's contact returns 404
+  PASS  A user_id in the body does not help User B either
+  PASS  User B deleting User A's contact returns 404
+  PASS  A signed-out request returns 401
+  PASS  User A's contact still exists
+  PASS  User A's contact is unchanged
+
+7/7 checks passed.
+APP PRIVACY CHECK PASSED
+```
+
+Note the 404s. User B is never told that the contact exists - "you may not
+touch this" and "this is not here" look identical from the outside, because RLS
+matches no rows and the handler cannot distinguish the two cases either.
+
 ### 5. Invalid input fails safely
 
 Submitting an empty name. The field is marked, the message names the problem,
@@ -449,7 +484,22 @@ Then:
    `https://<your-app>.vercel.app`. Localhost is allowed automatically, so this
    step only matters in production - and skipping it breaks verification and
    OAuth redirects there.
-3. Open the production URL in a private window and re-run the checks.
+3. Vercel → Settings → Deployment Protection: turn **Vercel Authentication**
+   off. New projects enable it by default, which puts a Vercel login in front
+   of the deployment - the URL returns HTTP 200, but serves Vercel's login page
+   instead of the app, so a grader cannot open it. From the CLI:
+   `vercel project protection disable --sso`
+4. Open the production URL in a private window and re-run the checks:
+   ```bash
+   BASE_URL=https://networking-tracker-carlos-mena.vercel.app npm run test:privacy
+   RLS_TEST_ORIGIN=https://networking-tracker-carlos-mena.vercel.app npm run test:rls
+   ```
+
+Both of the production-only failures worth knowing about are authentication
+allowlists rather than code problems: a missing trusted domain gives
+`INVALID_ORIGIN` from Neon, and Vercel Authentication gives a Vercel login page
+where the app should be. Neither reproduces locally, because Neon allows any
+localhost origin automatically and protection does not apply to `vercel dev`.
 
 ## Known limitations
 
