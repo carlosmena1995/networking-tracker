@@ -69,12 +69,45 @@ were captured against the live Vercel deployment**, not localhost.
 | Layer | Choice | Why |
 |---|---|---|
 | Framework | Next.js 16 (App Router, TypeScript) | One project holds the React UI and the HTTP API, while still keeping them in separate layers. Deploys to Vercel with no configuration. |
-| Styling | Tailwind CSS 4 + shadcn/ui | shadcn/ui gives accessible, unstyled-by-default components (dialog, select, toast) that I own in-repo, so the design system is visible in the code rather than hidden in a dependency. |
+| Styling | Tailwind CSS 4 + shadcn/ui, themed to UC Berkeley | shadcn/ui gives accessible, unstyled-by-default components (dialog, select, toast) that I own in-repo, so the design system is visible in the code rather than hidden in a dependency. The palette and type are Berkeley's - see [Design](#design). |
 | Auth | Neon Managed Better Auth | Users and sessions live in the same Postgres database as the data, so `auth.user_id()` is available inside RLS policies. No second system to keep in sync. |
 | Data | Neon Data API (PostgREST) via `@neondatabase/neon-js` | Requests carry the user's own JWT, so Postgres evaluates RLS per request. The server never holds a privileged database credential. |
 | Validation | Zod + Postgres `CHECK` constraints | Zod produces friendly per-field errors; the `CHECK` constraints are the rule that cannot be bypassed. |
 | Tests | Vitest | Fast, TypeScript-native, no extra config for path aliases. |
 | Hosting | Vercel | First-class Next.js support and per-environment variables. |
+
+## Design
+
+The component system is shadcn/ui on Tailwind 4, re-themed to the
+[UC Berkeley palette](https://brand.berkeley.edu). Every colour is defined once
+as a named token in `app/globals.css`, so the theme reads as colours a person
+can recognise rather than raw hex scattered through components:
+
+| Token | Berkeley colour | Used for |
+|---|---|---|
+| `--primary` | Berkeley Blue `#003262` | Buttons, headings, links |
+| `--ring` | California Gold `#FDB515` | Focus rings |
+| `--border` | Bay Fog `#DDD5C7` | Card and input borders |
+| `--background` | Bay Fog tint `#F7F5F1` | Page, so white cards lift off it |
+| `--accent` | California Gold | Highlights |
+
+Type is Adobe's Source superfamily — **Source Serif 4** for headings, **Source
+Sans 3** for body. Berkeley's own Freight Sans and Freight Display are
+licensed and cannot be redistributed; Source is the closest open pairing in
+feel, and the two faces are designed to work together.
+
+Two decisions worth calling out:
+
+- **Priority badges are a heat ramp, not decoration.** High is solid Wellman
+  Tile, Medium is a California Gold tint, Low is Bay Fog. A tinted High badge
+  read as *less* urgent than the gold Medium one, which inverted the meaning,
+  so High was given solid weight. Every badge also carries the word, so the
+  ranking never depends on seeing colour.
+- **Contrast was measured, not eyeballed.** All three badges and the primary
+  button clear WCAG AA: 5.02, 6.72, 5.59 and 12.86 to 1.
+
+In dark mode the roles swap — gold leads and Berkeley Blue becomes the ground,
+because Berkeley Blue has too little contrast against a dark navy page.
 
 ## Architecture
 

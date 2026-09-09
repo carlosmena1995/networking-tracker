@@ -37,10 +37,18 @@ const PRIORITY_FILTER_LABELS: Record<PriorityFilter, string> = {
   low: 'Low',
 };
 
+/**
+ * A heat ramp drawn from the Berkeley palette: Wellman Tile for urgent,
+ * California Gold for the middle, Bay Fog for the rest. Colour is doubled up
+ * with the word itself, so the ranking never depends on seeing hue.
+ */
 const PRIORITY_STYLES: Record<Priority, string> = {
-  high: 'border-transparent bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-200',
-  medium: 'border-transparent bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200',
-  low: 'border-transparent bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200',
+  // High is solid so it outranks the others at a glance. A tinted version read
+  // as *less* urgent than the gold Medium badge, which is backwards.
+  // The orange is Wellman Tile darkened to clear 4.5:1 against white text.
+  high: 'border-transparent bg-[#b4530f] text-white dark:bg-[#e07a2c] dark:text-[#2b1405]',
+  medium: 'border-transparent bg-[#fdeecb] text-[#6b4e06] dark:bg-[#413309] dark:text-[#f8dc9c]',
+  low: 'border-transparent bg-[#e6e1d6] text-[#4f5a45] dark:bg-[#1d3350] dark:text-[#c9d3dd]',
 };
 
 export function ContactsView() {
