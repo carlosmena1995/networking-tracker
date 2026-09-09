@@ -115,8 +115,16 @@ grant usage on schema public to authenticated;
 grant select on contacts to authenticated;
 grant delete on contacts to authenticated;
 
--- Column-level grants: id, user_id, created_at and updated_at are deliberately
--- absent, so a caller cannot supply or alter them even before RLS is consulted.
+-- Enabling the Data API runs ALTER DEFAULT PRIVILEGES for the `authenticated`
+-- role, so this table is created with table-wide INSERT and UPDATE already
+-- granted - user_id included. Column grants ADD to table grants, they never
+-- narrow them, so the table-level ones must be revoked first or the column
+-- list below is decorative.
+revoke insert, update on contacts from authenticated;
+
+-- Now the only writable columns are the six a user is meant to edit. id,
+-- user_id, created_at and updated_at are absent, so a caller cannot supply or
+-- alter an owner even before RLS is consulted.
 grant insert (name, company, role, met_at, notes, priority) on contacts to authenticated;
 grant update (name, company, role, met_at, notes, priority) on contacts to authenticated;
 
