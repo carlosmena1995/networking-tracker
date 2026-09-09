@@ -27,12 +27,20 @@ https://ep-xxxx-yyyy.neonauth.c-2.us-east-2.aws.neon.tech/neondb/auth
 While you are on that page:
 
 - Enable **Email and password** as a sign-in method.
-- Add these **trusted origins** (add the Vercel one after your first deploy):
-  - `http://localhost:3000`
-  - `https://<your-project>.vercel.app`
 
-> Trusted origins are a CORS-style allowlist. If sign-in works locally but fails
-> in production with a network or origin error, this is almost always why.
+Nothing to add here yet. Under **Configuration → Domains** you will later add
+your deployed URL:
+
+  - `https://<your-project>.vercel.app`  (add this after your first deploy)
+
+> **You do not need to add localhost.** Neon allows development domains
+> automatically, on any port.
+>
+> Trusted domains are the allowlist of URLs Managed Better Auth is willing to
+> redirect back to, which is what makes OAuth and email-verification links safe.
+> They are not CORS rules. Include the protocol and no trailing slash
+> (`https://myapp.com`, not `https://myapp.com/`). Wildcards work for preview
+> deployments: `https://*.my-app-preview.vercel.app`.
 
 ## 3. Enable the Data API
 
@@ -118,9 +126,13 @@ npm run test:rls # two-account privacy proof against the real database
 
 ## 7. Deploy
 
-After the first Vercel deploy, go back to **step 2** and add the
-`https://<your-project>.vercel.app` origin to trusted origins, then set the same
-five variables in Vercel → Settings → Environment Variables.
+After the first Vercel deploy, go back to **step 2** and add
+`https://<your-project>.vercel.app` under Auth → Configuration → Domains, then
+set the same five variables in Vercel → Settings → Environment Variables.
+
+Skipping the domain step is the classic production-only failure: everything
+works on localhost (auto-allowed) and then verification and OAuth redirects
+break on the deployed URL.
 
 Only `NEXT_PUBLIC_*` variables reach the browser. `NEON_AUTH_BASE_URL`,
 `NEON_AUTH_COOKIE_SECRET` and `DATABASE_URL` must stay server-only.

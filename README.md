@@ -235,8 +235,10 @@ Then:
 
 1. Vercel → Settings → Environment Variables: add all five variables. Only the
    two `NEXT_PUBLIC_` ones are public.
-2. Neon Console → Auth → Trusted origins: add `https://<your-app>.vercel.app`.
-   Sign-in fails in production until this is done.
+2. Neon Console → Auth → Configuration → Domains: add
+   `https://<your-app>.vercel.app`. Localhost is allowed automatically, so this
+   step only matters in production - and skipping it breaks verification and
+   OAuth redirects there.
 3. Open the production URL in a private window and re-run the checks.
 
 ## Known limitations
